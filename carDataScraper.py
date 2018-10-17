@@ -1,17 +1,22 @@
-import requests, bs4, io, sys
+import requests, bs4, sys, csv, datetime
+
+now = datetime.datetime.now()
 
 #the scraper axcepts two command line arguments - maker and model
-#TO DO: validate input
+#TO DO: validate input, apparently argparse is helpful
 maker = sys.argv[1]
 model = sys.argv[2]
+
 path = 'https://www.otomoto.pl/osobowe/' + maker + '/' + model 
+fileName = maker + '-' + model + '-' + str(now.date()) + '.csv'
+
+
+#prepare the file
+carFile = open(fileName, 'w', newline="")
+outputWriter = csv.writer(carFile)
 
 res = requests.get(path)
 res.raise_for_status()
-
-#prepare the file
-carFile = io.open('carData.txt', 'w', encoding="utf-8")
-
 
 #check how many pages are there
 carSoup = bs4.BeautifulSoup(res.text, features="lxml")
@@ -26,17 +31,23 @@ for i in range(1, lastPage):
     print("parsing page " + str(i))
     for car in carList:
         #get the interesting data and write to file
-        #TO DO: Create a nicer file, like an MS Excel file
+        currentCarData = []
         price = car.find('span',class_='offer-price__number').text.strip().replace(" ", "")
-        carFile.write(price + ',' )
+        currentCarData.append(price)
         title = car.find('a',class_='offer-title__link').text.strip()
-        carFile.write(title + ',' )
-        params = car.find_all("li", class_='offer-item__params-item')
+        currentCarData.append(title)
+
         #Iterate through parameters
-        #TO DO: account for missing parameters
-        for param in params:
-            carFile.write(param.text.strip()+ ',')
-        carFile.write('\n')
+        paramList = ["year", "mileage", "engine_capacity", "fuel_type"]
+        for param in paramList:
+            currentParameter = car.find('li', {"data-code": param})
+            if (currentParameter):
+                currentCarData.append(currentParameter.text.strip())
+                print(currentParameter.text.strip())
+            else:
+                currentCarData.append("")
+
+        outputWriter.writerow(currentCarData)
     
 carFile.close()
 
